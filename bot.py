@@ -80,11 +80,12 @@ async def main():
     print("✅ Bot çalışıyor...")
     await app.run_polling()
 
-# ✅ asyncio.run() KULLANMA! Bunun yerine aşağıdaki yapı
+# ✅ asyncio.run() kullanmadan event loop ile başlat
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(main())
     except KeyboardInterrupt:
-print("⛔ Bot kapatıldı.")
-
+        print("⛔ Bot kapatıldı.")
+    finally:
+        loop.close()
