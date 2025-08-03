@@ -105,4 +105,12 @@ async def excel_watcher(app):
                 try:
                     await app.bot.ban_chat_member(GROUP_ID, user_id)
                     await app.bot.unban_chat_member(GROUP_ID, user_id)
-                    await app.bot.send_message(chat_id=GROUP_ID,_
+                    await app.bot.send_message(
+                        chat_id=GROUP_ID,
+                        text=f"❌ {name} – {code} kodu iptal edildi, gruptan çıkarıldı."
+                    )
+                except Exception as e:
+                    print(f"Çıkarma hatası: {e}")
+
+                cursor.execute("DELETE FROM users WHERE code=?", (code,))
+                conn.commit()
