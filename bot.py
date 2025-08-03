@@ -114,8 +114,13 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
 app.add_handler(CommandHandler("duyuru", duyuru))
 
 # ✅ Watcher başlat
-async def run():
+import asyncio
+
+async def main():
     asyncio.create_task(excel_watcher(app))
     await app.run_polling()
 
-asyncio.run(run())
+if __name__ == "__main__":
+    import nest_asyncio
+    nest_asyncio.apply()  # Railway'de event loop çakışmasını önler
+    asyncio.get_event_loop().run_until_complete(main())
