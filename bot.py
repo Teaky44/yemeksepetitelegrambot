@@ -141,6 +141,7 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
 async def run():
     print("✅ Bot polling başlatılıyor...")
     asyncio.create_task(excel_watcher(app))
-    await app.run_polling(allowed_updates=telegram.constants.Update.ALL_TYPES)
+    await app.run_polling()   # 🔥 Burada artık hata veren parametre yok
 
 asyncio.run(run())
+
