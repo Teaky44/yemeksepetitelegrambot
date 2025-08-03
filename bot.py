@@ -7,8 +7,8 @@ from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, fil
 import asyncio
 
 # ✅ Railway/Render env değişkenleri
-TOKEN = os.environ.get("TOKEN")
-GROUP_ID = int(os.environ.get("GROUP_ID"))
+TOKEN = os.environ.get("7618800446:AAGX5gmYeKIxgJ7ZjI_4wToBGCHhQl6zrGw")
+GROUP_ID = int(os.environ.get("1002783764688"))
 
 EXCEL_FILE = "kodlar.xlsx"
 
@@ -114,3 +114,4 @@ async def excel_watcher(app):
 
                 cursor.execute("DELETE FROM users WHERE code=?", (code,))
                 conn.commit()
+
