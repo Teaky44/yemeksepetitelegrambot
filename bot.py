@@ -26,11 +26,11 @@ conn.commit()
 
 # ✅ Excel okuma
 def read_codes():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Kodlar")
+    pd.read_excel(EXCEL_FILE, sheet_name="Kodlar", engine="openpyxl")
 
 def read_admins():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Adminler")
-
+    return pd.read_excel(EXCEL_FILE, sheet_name="Adminler", engine="openpyxl")
+    
 def is_admin(user_id):
     admins = read_admins()
     return user_id in admins["AdminID"].values
@@ -142,5 +142,6 @@ if __name__ == "__main__":
     print("✅ Bot polling başlatılıyor...")
     asyncio.get_event_loop().create_task(excel_watcher(app))
     app.run_polling()
+
 
 
