@@ -115,13 +115,18 @@ app.add_handler(CommandHandler("duyuru", duyuru))
 
 # ✅ Watcher başlat
 import asyncio
+import nest_asyncio
 
-async def main():
+nest_asyncio.apply()
+
+async def on_start():
     asyncio.create_task(excel_watcher(app))
-    await app.run_polling()
 
 if __name__ == "__main__":
-    import nest_asyncio
-    nest_asyncio.apply()  # Railway'de event loop çakışmasını önler
-    asyncio.get_event_loop().run_until_complete(main())
-
+    app.run_polling(
+        poll_interval=2.0,
+        allowed_updates=telegram.constants.Update.ALL_TYPES,
+        close_loop=False,       # 🔴 Railway için kritik
+        stop_signals=None,
+        before_start=on_start   # 🔴 Excel watcher başlıyor
+    )
