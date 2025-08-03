@@ -66,7 +66,7 @@ async def excel_watcher(app):
         await asyncio.sleep(15)
         try:
             df = read_codes()
-            # Burada Excel’den silinen kullanıcıları gruptan atma kodu eklenecek
+            # Excel’den silinen kullanıcıları gruptan atma kodu buraya gelecek
         except Exception as e:
             print(f"[Excel Watcher] Hata: {e}")
 
@@ -78,14 +78,7 @@ async def main():
     asyncio.create_task(excel_watcher(app))
 
     print("✅ Bot çalışıyor...")
-    await app.run_polling()
+    await app.run_polling(close_loop=False)  # ✅ Railway’de loop çakışmasını engeller
 
-# ✅ asyncio.run() kullanmadan event loop ile başlat
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        print("⛔ Bot kapatıldı.")
-    finally:
-        loop.close()
+    asyncio.run(main())  # ✅ artık loop çakışması yaşamayacaksın
