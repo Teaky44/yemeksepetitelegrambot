@@ -1,11 +1,15 @@
+import os
 import pandas as pd
 import sqlite3
+import telegram   # ✅ eksik import eklendi
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
 import asyncio
 
-TOKEN = "7618800446:AAGX5gmYeKIxgJ7ZjI_4wToBGCHhQl6zrGw"
-GROUP_ID = -1002783764688
+# ✅ Railway/Render env değişkenleri
+TOKEN = os.environ.get("TOKEN")
+GROUP_ID = int(os.environ.get("GROUP_ID"))
+
 EXCEL_FILE = "kodlar.xlsx"
 
 # ✅ SQLite (kod – user_id – isim)
@@ -16,10 +20,10 @@ conn.commit()
 
 # ✅ Excel okuma
 def read_codes():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Kodlar", engine="openpyxl")
+    return pd.read_excel(EXCEL_FILE, sheet_name="Kodlar")
 
 def read_admins():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Adminler", engine="openpyxl")
+    return pd.read_excel(EXCEL_FILE, sheet_name="Adminler")
 
 def is_admin(user_id):
     admins = read_admins()
@@ -101,32 +105,4 @@ async def excel_watcher(app):
                 try:
                     await app.bot.ban_chat_member(GROUP_ID, user_id)
                     await app.bot.unban_chat_member(GROUP_ID, user_id)
-                    await app.bot.send_message(chat_id=GROUP_ID, text=f"❌ {name} – {code} kodu iptal edildi, gruptan çıkarıldı.")
-                except Exception as e:
-                    print(f"Çıkarma hatası: {e}")
-
-                cursor.execute("DELETE FROM users WHERE code=?", (code,))
-                conn.commit()
-
-# ✅ Bot başlat
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
-app.add_handler(CommandHandler("duyuru", duyuru))
-
-# ✅ Watcher başlat
-import asyncio
-import nest_asyncio
-
-nest_asyncio.apply()
-
-async def on_start():
-    asyncio.create_task(excel_watcher(app))
-
-if __name__ == "__main__":
-    app.run_polling(
-        poll_interval=2.0,
-        allowed_updates=telegram.constants.Update.ALL_TYPES,
-        close_loop=False,       # 🔴 Railway için kritik
-        stop_signals=None,
-        before_start=on_start   # 🔴 Excel watcher başlıyor
-    )
+                    await app.bot.send_message(chat_id=GROUP_ID,_
