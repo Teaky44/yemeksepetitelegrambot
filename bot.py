@@ -1,18 +1,24 @@
 import os
 import pandas as pd
 import sqlite3
-import telegram   # ✅ eksik import eklendi
+import telegram
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder, 
+    MessageHandler, 
+    CommandHandler, 
+    filters, 
+    ContextTypes
+)
 import asyncio
 
-# ✅ Railway/Render env değişkenleri
+# ✅ Environment variables (Railway)
 TOKEN = os.environ.get("TOKEN")
 GROUP_ID = int(os.environ.get("GROUP_ID"))
 
 EXCEL_FILE = "kodlar.xlsx"
 
-# ✅ SQLite (kod – user_id – isim)
+# ✅ SQLite DB (kullanıcı kayıt)
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS users (code TEXT PRIMARY KEY, user_id INTEGER, name TEXT)")
@@ -29,6 +35,12 @@ def is_admin(user_id):
     admins = read_admins()
     return user_id in admins["AdminID"].values
 
+# ✅ /start komutu
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 Merhaba! Kodunu buraya yaz. Kod doğruysa seni gruba ekleyeceğim."
+    )
+
 # ✅ Kullanıcı kod girdiğinde
 async def check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code = update.message.text.strip()
@@ -38,7 +50,7 @@ async def check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Kod geçerli değil.")
         return
 
-    # Kod daha önce kullanıldı mı?
+    # Kod kullanıldı mı?
     cursor.execute("SELECT user_id FROM users WHERE code=?", (code,))
     used = cursor.fetchone()
     if used:
@@ -61,10 +73,10 @@ async def check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.execute("INSERT INTO users (code, user_id, name) VALUES (?, ?, ?)", (code, update.message.from_user.id, name))
     conn.commit()
 
-    # 📢 Grupta hoş geldin
+    # 📢 Grupta hoş geldin mesajı
     await context.bot.send_message(chat_id=GROUP_ID, text=f"🎉 {name} – {code} ile aramıza katıldı! 🛵")
 
-    # 📩 Kullanıcıya DM + GIF gönder
+    # 📩 Kullanıcıya GIF + kurallar
     with open("welcome.gif", "rb") as gif_file:
         await context.bot.send_animation(
             chat_id=update.message.from_user.id,
@@ -115,4 +127,20 @@ async def excel_watcher(app):
                 cursor.execute("DELETE FROM users WHERE code=?", (code,))
                 conn.commit()
 
+# ✅ Bot başlat
+app = ApplicationBuilder().token(TOKEN).build()
 
+# 🔹 Komut handler’ları
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("duyuru", duyuru))
+
+# 🔹 Normal mesaj (kod girişi) handler’ı
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
+
+# ✅ Watcher başlat + Polling
+async def run():
+    print("✅ Bot polling başlatılıyor...")
+    asyncio.create_task(excel_watcher(app))
+    await app.run_polling(allowed_updates=telegram.constants.Update.ALL_TYPES)
+
+asyncio.run(run())
