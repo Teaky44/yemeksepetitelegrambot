@@ -61,6 +61,7 @@ async def check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🚫 Bu kod geçerli değil ya da silinmiş.")
 
 async def excel_watcher(app):
+    """Excel dosyasını sürekli kontrol eder, ID silinenleri gruptan çıkarır."""
     last_ids = set()
     while True:
         try:
@@ -81,17 +82,18 @@ async def excel_watcher(app):
 
         await asyncio.sleep(30)
 
+async def post_init(app):
+    """Bot çalışınca watcher'ı başlat."""
+    asyncio.create_task(excel_watcher(app))
+
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
 
-    # Excel watcher'ı async olarak çalıştır
-    asyncio.create_task(excel_watcher(app))
-
     print("✅ Bot polling başlatılıyor...")
-    app.run_polling()   # 🔥 asyncio.run() yok!
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
