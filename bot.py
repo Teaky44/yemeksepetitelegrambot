@@ -8,6 +8,7 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_ID = os.getenv("GROUP_ID")
 EXCEL_FILE = "kodlar.xlsx"
 
+
 # ✅ Excel okuma
 def read_codes():
     df = pd.read_excel(EXCEL_FILE, engine="openpyxl")
@@ -59,29 +60,35 @@ async def check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Davet linki oluşturulamadı: {e}")
 
+
 # ✅ Excel kontrol task’ı
-async def excel_watcher(app):
-    await asyncio.sleep(5)
+async def excel_watcher():
     while True:
         await asyncio.sleep(15)
         try:
             df = read_codes()
-            # ❗ Buraya: Excel’den silinen kullanıcıyı gruptan atma kodu eklenebilir
+            # Buraya excelden silinen ID'leri gruptan atma kodu eklenebilir
         except Exception as e:
             print(f"[Excel Watcher] Hata: {e}")
 
-# ✅ BOT ÇALIŞTIR
+
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), check_code))
 
-    asyncio.create_task(excel_watcher(app))
+    # ✅ watcher'ı aynı loop içinde çalıştırıyoruz
+    asyncio.create_task(excel_watcher())
 
     print("✅ Bot çalışıyor...")
-    await app.run_polling(close_loop=False)   # Railway’de loop kapanma sorunu bitiyor
+    # ❗ Artık close_loop parametresine gerek yok çünkü asyncio.run() kullanmıyoruz
+    await app.run_polling()
 
-# 🚀 asyncio.run() KULLANMIYORUZ → Railway ile çakışmıyor
+
+# 🚀 Railway’de çalışacak final blok
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.create_task(main())
-    loop.run_forever()
+    try:
+        loop.create_task(main())
+        loop.run_forever()
+    except (KeyboardInterrupt, SystemExit):
+        print("⛔ Bot kapatıldı.")
