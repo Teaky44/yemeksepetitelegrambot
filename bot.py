@@ -66,11 +66,11 @@ async def excel_watcher(app):
         await asyncio.sleep(15)
         try:
             df = read_codes()
-            # Excel’den silinen kullanıcıları gruptan atma kodu buraya gelecek
+            # ❗ Buraya: Excel’den silinen kullanıcıyı gruptan atma kodu eklenebilir
         except Exception as e:
             print(f"[Excel Watcher] Hata: {e}")
 
-# ✅ Botu başlat
+# ✅ BOT ÇALIŞTIR
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), check_code))
@@ -78,7 +78,10 @@ async def main():
     asyncio.create_task(excel_watcher(app))
 
     print("✅ Bot çalışıyor...")
-    await app.run_polling(close_loop=False)  # ✅ Railway’de loop çakışmasını engeller
+    await app.run_polling(close_loop=False)   # Railway’de loop kapanma sorunu bitiyor
 
+# 🚀 asyncio.run() KULLANMIYORUZ → Railway ile çakışmıyor
 if __name__ == "__main__":
-    asyncio.run(main())  # ✅ artık loop çakışması yaşamayacaksın
+    loop = asyncio.get_event_loop()
+    loop.create_task(main())
+    loop.run_forever()
