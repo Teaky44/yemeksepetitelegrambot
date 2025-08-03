@@ -1,147 +1,138 @@
-import os
+import logging
 import pandas as pd
-import sqlite3
-import telegram
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder, 
-    MessageHandler, 
-    CommandHandler, 
-    filters, 
-    ContextTypes
-)
 import asyncio
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# ✅ Environment variables (Railway)
-TOKEN = os.environ.get("TOKEN")
-GROUP_ID = int(os.environ.get("GROUP_ID"))
+# ==============================
+# 🔧 AYARLAR
+# ==============================
+TOKEN = "7618800446:AAGX5gmYeKIxgJ7ZjI_4wToBGCHhQl6zrGw"
+GROUP_ID = -1002783764688       # Botun ekleme yapacağı Telegram grup ID'si
+EXCEL_FILE = "kodlar.xlsx"      # Railway'e yüklediğin Excel dosyası
 
-EXCEL_FILE = "kodlar.xlsx"
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
-# ✅ SQLite DB (kullanıcı kayıt)
-conn = sqlite3.connect("bot.db", check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS users (code TEXT PRIMARY KEY, user_id INTEGER, name TEXT)")
-conn.commit()
-
-# ✅ Excel okuma
+# ==============================
+# 📂 EXCEL OKUMA/YAZMA FONKSİYONLARI
+# ==============================
 def read_codes():
-    pd.read_excel(EXCEL_FILE, sheet_name="Kodlar", engine="openpyxl")
+    """Excel'in ilk sayfasını okur"""
+    return pd.read_excel(EXCEL_FILE, engine="openpyxl")
 
-def read_admins():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Adminler", engine="openpyxl")
-    
-def is_admin(user_id):
-    admins = read_admins()
-    return user_id in admins["AdminID"].values
+def save_codes(df):
+    """Excel'e geri yazar"""
+    df.to_excel(EXCEL_FILE, index=False)
 
-# ✅ /start komutu
+# ==============================
+# 📜 /start KOMUTU
+# ==============================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Merhaba! Kodunu buraya yaz. Kod doğruysa seni gruba ekleyeceğim."
+        "📥 Hoş geldin! Bana *kodunu* gönder, seni gruba ekleyeyim.",
+        parse_mode="Markdown"
     )
 
-# ✅ Kullanıcı kod girdiğinde
+# ==============================
+# ✅ KOD KONTROL & GRUBA EKLEME
+# ==============================
 async def check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    code = update.message.text.strip()
-    df = read_codes()
+    user_message = update.message.text.strip()
+    user_id = update.message.from_user.id
+    user_name = update.message.from_user.full_name
 
-    if code not in df["Kod"].values:
-        await update.message.reply_text("❌ Kod geçerli değil.")
-        return
-
-    # Kod kullanıldı mı?
-    cursor.execute("SELECT user_id FROM users WHERE code=?", (code,))
-    used = cursor.fetchone()
-    if used:
-        await update.message.reply_text("❌ Bu kod zaten kullanıldı.")
-        return
-
-    # Excel'den isim bul
-    name = df.loc[df["Kod"] == code, "İsim"].values[0]
-
-    # Kullanıcıyı gruba ekle
     try:
-        await context.bot.add_chat_members(chat_id=GROUP_ID, user_ids=[update.message.from_user.id])
-        await update.message.reply_text("✅ Kod onaylandı, gruba eklendin.")
-    except Exception as e:
-        await update.message.reply_text("🚫 Gruba eklenirken hata oluştu.")
-        print(f"Gruba ekleme hatası: {e}")
-        return
-
-    # DB kaydı
-    cursor.execute("INSERT INTO users (code, user_id, name) VALUES (?, ?, ?)", (code, update.message.from_user.id, name))
-    conn.commit()
-
-    # 📢 Grupta hoş geldin mesajı
-    await context.bot.send_message(chat_id=GROUP_ID, text=f"🎉 {name} – {code} ile aramıza katıldı! 🛵")
-
-    # 📩 Kullanıcıya GIF + kurallar
-    with open("welcome.gif", "rb") as gif_file:
-        await context.bot.send_animation(
-            chat_id=update.message.from_user.id,
-            animation=gif_file,
-            caption=(f"🎉 Hoş geldin {name}!\n\n✅ Kodun: {code}\n"
-                     f"📦 Artık *Yemeksepeti Kurye Topluluğu*’ndasın.\n\n"
-                     "📜 Grup Kuralları:\n"
-                     "1️⃣ Kod tek seferliktir, başkasına verme.\n"
-                     "2️⃣ Kod silinirse gruptan çıkarsın.\n"
-                     "3️⃣ Spam/küfür, reklam yasak.\n"
-                     "4️⃣ Burada sadece bilgi & destek paylaşımları var.\n\n"
-                     "🛵 Güvenli sürüşler ve keyifli sohbetler!"),
-            parse_mode="Markdown"
-        )
-
-# ✅ /duyuru komutu (sadece admin)
-async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("🚫 Bu komutu sadece yöneticiler kullanabilir.")
-        return
-
-    if len(context.args) == 0:
-        await update.message.reply_text("❗ Kullanım: /duyuru <mesaj>")
-        return
-
-    mesaj = " ".join(context.args)
-    await context.bot.send_message(chat_id=GROUP_ID, text=f"📢 *Yönetici Duyurusu:*\n{mesaj}", parse_mode="Markdown")
-
-# ✅ Excel watcher (kod silindi mi?)
-async def excel_watcher(app):
-    while True:
-        await asyncio.sleep(60)
         df = read_codes()
-        db_users = cursor.execute("SELECT code, user_id, name FROM users").fetchall()
+    except Exception as e:
+        await update.message.reply_text(f"❌ Excel okunamadı: {e}")
+        return
 
-        for code, user_id, name in db_users:
-            if code not in df["Kod"].values:
-                try:
-                    await app.bot.ban_chat_member(GROUP_ID, user_id)
-                    await app.bot.unban_chat_member(GROUP_ID, user_id)
-                    await app.bot.send_message(
-                        chat_id=GROUP_ID,
-                        text=f"❌ {name} – {code} kodu iptal edildi, gruptan çıkarıldı."
-                    )
-                except Exception as e:
-                    print(f"Çıkarma hatası: {e}")
+    if "Kod" not in df.columns or "İsim" not in df.columns:
+        await update.message.reply_text("❌ Excel'de 'Kod' ve 'İsim' sütunları olmalı!")
+        return
 
-                cursor.execute("DELETE FROM users WHERE code=?", (code,))
-                conn.commit()
+    # Kullanıcının yazdığı kodu bul
+    matched = df[df["Kod"].astype(str) == user_message]
 
-# ✅ Bot başlat
-app = ApplicationBuilder().token(TOKEN).build()
+    if not matched.empty:
+        row_index = matched.index[0]
 
-# 🔹 Komut handler’ları
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("duyuru", duyuru))
+        # Kod zaten kullanılmış mı?
+        if not pd.isna(df.loc[row_index, "ID"]):
+            await update.message.reply_text("🚫 Bu kod zaten kullanılmış.")
+            return
 
-# 🔹 Normal mesaj (kod girişi) handler’ı
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
+        isim = df.loc[row_index, "İsim"]
 
-# ✅ Watcher + Polling (asyncio.run() yerine)
-if __name__ == "__main__":
+        try:
+            # Kullanıcıyı gruba ekle
+            await context.bot.add_chat_members(chat_id=GROUP_ID, user_ids=[user_id])
+            await update.message.reply_text(f"✅ {isim} ({user_message}) gruba eklendi!")
+
+            # Grup içinde duyuru
+            await context.bot.send_message(
+                chat_id=GROUP_ID,
+                text=f"👋 {isim} - {user_message} koda sahip üye katıldı!"
+            )
+
+            # Excel'e kullanıcı ID'sini kaydet
+            df.loc[row_index, "ID"] = user_id
+            save_codes(df)
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Gruba eklenirken hata: {e}")
+    else:
+        await update.message.reply_text("🚫 Bu kod geçerli değil ya da silinmiş.")
+
+# ==============================
+# 🔄 EXCEL TAKİP (Kod silinirse gruptan at)
+# ==============================
+async def excel_watcher(app):
+    """Excel dosyasını belli aralıklarla kontrol eder.
+    Artık listede olmayan kullanıcıları gruptan atar."""
+    last_ids = set()
+
+    while True:
+        try:
+            df = read_codes()
+
+            if "ID" in df.columns:
+                current_ids = set(df["ID"].dropna().astype(int))
+
+                # Önceki listede olan ama artık olmayan ID’ler
+                removed_ids = last_ids - current_ids
+                for uid in removed_ids:
+                    try:
+                        await app.bot.ban_chat_member(GROUP_ID, uid)  # gruptan çıkar
+                        await app.bot.unban_chat_member(GROUP_ID, uid) # banı kaldır (çıkmış olur)
+                        logging.info(f"❌ {uid} ID'li kullanıcı gruptan çıkarıldı.")
+                    except Exception as e:
+                        logging.error(f"❌ {uid} gruptan atılamadı: {e}")
+
+                last_ids = current_ids
+
+        except Exception as e:
+            logging.error(f"Excel watcher hatası: {e}")
+
+        await asyncio.sleep(30)  # her 30 saniyede bir kontrol
+
+# ==============================
+# 🚀 BOT ÇALIŞTIR
+# ==============================
+async def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
+
+    # Excel watcher görevini paralel başlat
+    asyncio.create_task(excel_watcher(app))
+
     print("✅ Bot polling başlatılıyor...")
-    asyncio.get_event_loop().create_task(excel_watcher(app))
-    app.run_polling()
+    await app.run_polling()
 
-
-
+if __name__ == "__main__":
+    asyncio.run(main())
