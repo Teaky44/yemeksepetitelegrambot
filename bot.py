@@ -137,11 +137,10 @@ app.add_handler(CommandHandler("duyuru", duyuru))
 # 🔹 Normal mesaj (kod girişi) handler’ı
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_code))
 
-# ✅ Watcher başlat + Polling
-async def run():
+# ✅ Watcher + Polling (asyncio.run() yerine)
+if __name__ == "__main__":
     print("✅ Bot polling başlatılıyor...")
-    asyncio.create_task(excel_watcher(app))
-    await app.run_polling()   # 🔥 Burada artık hata veren parametre yok
+    asyncio.get_event_loop().create_task(excel_watcher(app))
+    app.run_polling()
 
-asyncio.run(run())
 
