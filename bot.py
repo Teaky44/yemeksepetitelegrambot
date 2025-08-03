@@ -16,10 +16,10 @@ conn.commit()
 
 # ✅ Excel okuma
 def read_codes():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Kodlar")
+    return pd.read_excel(EXCEL_FILE, sheet_name="Kodlar", engine="openpyxl")
 
 def read_admins():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Adminler")
+    return pd.read_excel(EXCEL_FILE, sheet_name="Adminler", engine="openpyxl")
 
 def is_admin(user_id):
     admins = read_admins()
@@ -124,3 +124,4 @@ if __name__ == "__main__":
     import nest_asyncio
     nest_asyncio.apply()  # Railway'de event loop çakışmasını önler
     asyncio.get_event_loop().run_until_complete(main())
+
